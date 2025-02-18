@@ -1,0 +1,27 @@
+.vs
+.vsconfig
+.svn
+.idea
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.sln
+*.suo
+*.xcodeproj
+*.xcworkspace
+*.DotSettings.user
+
+# 虚幻常规目录忽略
+**/Binaries
+**/Intermediate
+Build/*
+Content/*
+DerivedDataCache/*
+Saved/*
+EditorSaved/*
+
+# 原始 proto 文件不入库
+Misc/raw-proto
+Tools/export-proto-to-kts
+UserData/
