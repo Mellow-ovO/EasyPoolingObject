@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogEasyPoolingObject,Log,All)
+
 class FEasyPoolingObjectModule : public IModuleInterface
 {
 public:

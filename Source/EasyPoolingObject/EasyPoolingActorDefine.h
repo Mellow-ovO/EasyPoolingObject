@@ -10,7 +10,7 @@
  * 
  */
 
-DECLARE_DELEGATE_OneParam(FPostPoolingActorRequestSuccess, UObject*, ResultOject);
+DECLARE_DELEGATE_OneParam(FPostPoolingActorRequestSuccess, UObject*);
 
 
 USTRUCT(BlueprintType)
@@ -33,6 +33,16 @@ public:
 	{
 		return Handle != 0;
 	}
+
+	void Invalidate()
+	{
+		Handle = 0;
+	}
+
+	bool operator==(const FPoolingObjectRequestHandle& Other) const
+	{
+		return Handle == Other.Handle;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -46,7 +56,8 @@ public:
 
 	int32 Priority = 1;
 
-	UPROPERTY()
+	FTransform ActorTransform;
+
 	FPostPoolingActorRequestSuccess RequestSuccessDelegate;
 
 	UPROPERTY()
@@ -61,6 +72,14 @@ public:
 	FPoolingObjectRequest(TSubclassOf<UObject> RequestClass, int32 InPriority)
 		:RequestObjectClass(RequestClass)
 		,Priority(InPriority)
+	{
+		
+	}
+
+	FPoolingObjectRequest(TSubclassOf<AActor> RequestClass, int32 InPriority, FTransform InTransform)
+		:RequestObjectClass(RequestClass)
+		,Priority(InPriority)
+		,ActorTransform(InTransform)
 	{
 		
 	}

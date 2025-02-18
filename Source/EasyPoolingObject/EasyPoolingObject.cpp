@@ -2,6 +2,8 @@
 
 #include "EasyPoolingObject.h"
 
+DEFINE_LOG_CATEGORY(LogEasyPoolingObject)
+
 #define LOCTEXT_NAMESPACE "FEasyPoolingObjectModule"
 
 void FEasyPoolingObjectModule::StartupModule()

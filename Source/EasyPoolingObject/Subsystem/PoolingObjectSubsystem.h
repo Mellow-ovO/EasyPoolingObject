@@ -17,13 +17,19 @@ struct FPooingObjectDetail
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<UObject*> TotalPooingObject;
+	TSet<UObject*> TotalPooingObject;
 
 	UPROPERTY()
 	TArray<UObject*> PooingObjectsCanUse;
 
 	UPROPERTY()
 	int32 Limit = -1;
+
+	FPooingObjectDetail(int32 InLimit = -1)
+		:Limit(InLimit)
+	{
+		
+	}
 };
 
 USTRUCT()
@@ -36,6 +42,12 @@ struct FPooingObjectRequestQueue
 
 	UPROPERTY()
 	int32 Limit = -1;
+
+	FPooingObjectRequestQueue(int32 InLimit = -1)
+		:Limit(InLimit)
+	{
+		
+	}
 };
 
 UCLASS(BlueprintType)
@@ -47,20 +59,6 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-public:
-	UObject* TryGetObjectOfClass(TSubclassOf<UObject> Class);
-	AActor* TryGetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
-
-protected:
-	UObject* Internal_GetObjectOfClass(TSubclassOf<UObject> Class);
-	AActor* Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
-
-public:
-	FPoolingObjectRequestHandle RequestPoolingObject(const FPoolingObjectRequest& Request);
-
-	UFUNCTION(BlueprintCallable)
-	void CancelRequestAndInvalidateHandle(UPARAM(ref)FPoolingObjectRequestHandle& Handle);
-	
 protected:
 	UPROPERTY()
 	TMap<TSubclassOf<UObject>,FPooingObjectDetail> PooingObjectDetailMap;
@@ -69,5 +67,31 @@ protected:
 	TMap<TSubclassOf<UObject>,FPooingObjectRequestQueue> PendingQueueMap;
 
 protected:
+	void InitObjectDetail(TSubclassOf<UObject> Class);
+	void InitObjectRequestQueue(TSubclassOf<UObject> Class);
+
+public:
+	UObject* TryGetObjectOfClass(TSubclassOf<UObject> Class);
+	AActor* TryGetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
+	void ReleaseObjectToPool(UObject* Object);
+
+protected:
+	UObject* Internal_GetObjectOfClass(TSubclassOf<UObject> Class);
+	AActor* Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
+
+	void TryProcessRequest(TSubclassOf<AActor> Class);
+
+public:
+	FPoolingObjectRequestHandle RequestPoolingObject(FPoolingObjectRequest& Request);
+
+	UFUNCTION(BlueprintCallable)
+	void CancelRequestAndInvalidateHandle(TSubclassOf<UObject> Class, UPARAM(ref)FPoolingObjectRequestHandle& Handle);
+
+
+protected:
+	uint64 HandleIndex = 0;
+
+protected:
+	FPoolingObjectRequestHandle GenerateNewHandle();
 	
 };
