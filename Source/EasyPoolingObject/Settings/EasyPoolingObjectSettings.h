@@ -10,7 +10,7 @@
  * 
  */
 
-#define GET_MAX_OBJECT_POOLING_NUM(Class) (GetDefault<UEasyPoolingObjectSettings>()->MaxObjectPoolingNum.FindRef(Class));
+#define GET_EASY_POOLING_OBJECT_SETTING_PROPERTY(Property) (GetDefault<UEasyPoolingObjectSettings>()->Property);
 
 UCLASS(config = Game ,DefaultConfig)
 class EASYPOOLINGOBJECT_API UEasyPoolingObjectSettings : public UDeveloperSettings
@@ -23,4 +23,7 @@ public:
 public:
 	UPROPERTY(Config,EditAnywhere,BlueprintReadWrite,meta=(MustImplement="/Script/EasyPoolingObject.EasyPoolingInterface"))
 	TMap<TSubclassOf<UObject>,int32> MaxObjectPoolingNum;
+
+	UPROPERTY(Config,EditAnywhere,BlueprintReadWrite,meta=(MustImplement="/Script/EasyPoolingObject.EasyPoolingInterface"))
+	TMap<TSubclassOf<UObject>,int32> ObjectRequestQueueLengthLimit;
 };

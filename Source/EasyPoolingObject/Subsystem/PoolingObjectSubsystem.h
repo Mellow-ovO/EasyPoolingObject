@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "EasyPoolingObject/EasyPoolingActorDefine.h"
 #include "PoolingObjectSubsystem.generated.h"
 
 /**
@@ -20,6 +21,21 @@ struct FPooingObjectDetail
 
 	UPROPERTY()
 	TArray<UObject*> PooingObjectsCanUse;
+
+	UPROPERTY()
+	int32 Limit = -1;
+};
+
+USTRUCT()
+struct FPooingObjectRequestQueue
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FPoolingObjectRequest> PendingQueue;
+
+	UPROPERTY()
+	int32 Limit = -1;
 };
 
 UCLASS(BlueprintType)
@@ -32,12 +48,26 @@ public:
 	virtual void Deinitialize() override;
 
 public:
-	UObject* GetOrCreateObjectOfClass(TSubclassOf<UObject> Class);
-	AActor* GetOrCreateActorOfClass()
+	UObject* TryGetObjectOfClass(TSubclassOf<UObject> Class);
+	AActor* TryGetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
 
-	
+protected:
+	UObject* Internal_GetObjectOfClass(TSubclassOf<UObject> Class);
+	AActor* Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
+
 public:
+	FPoolingObjectRequestHandle RequestPoolingObject(const FPoolingObjectRequest& Request);
+
+	UFUNCTION(BlueprintCallable)
+	void CancelRequestAndInvalidateHandle(UPARAM(ref)FPoolingObjectRequestHandle& Handle);
+	
+protected:
 	UPROPERTY()
 	TMap<TSubclassOf<UObject>,FPooingObjectDetail> PooingObjectDetailMap;
+	
+	UPROPERTY()
+	TMap<TSubclassOf<UObject>,FPooingObjectRequestQueue> PendingQueueMap;
+
+protected:
 	
 };

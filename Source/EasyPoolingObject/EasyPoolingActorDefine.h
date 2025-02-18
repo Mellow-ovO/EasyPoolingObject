@@ -9,17 +9,21 @@
 /**
  * 
  */
+
+DECLARE_DELEGATE_OneParam(FPostPoolingActorRequestSuccess, UObject*, ResultOject);
+
+
 USTRUCT(BlueprintType)
 struct FPoolingObjectRequestHandle
 {
 	GENERATED_BODY()
 
 protected:
-	int32 Handle = INDEX_NONE;
+	UPROPERTY(Transient)
+	uint64 Handle = 0;
 
 public:
-
-	FPoolingObjectRequestHandle(int32 Index = INDEX_NONE)
+	FPoolingObjectRequestHandle(int64 Index = 0)
 		:Handle(Index)
 	{
 		
@@ -27,7 +31,39 @@ public:
 	
 	bool IsValid() const
 	{
-		return Handle != INDEX_NONE;
+		return Handle != 0;
 	}
 };
+
+USTRUCT(BlueprintType)
+struct FPoolingObjectRequest
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	TSubclassOf<UObject> RequestObjectClass;
+
+	int32 Priority = 1;
+
+	UPROPERTY()
+	FPostPoolingActorRequestSuccess RequestSuccessDelegate;
+
+	UPROPERTY()
+	FPoolingObjectRequestHandle Handle;
+
+public:
+	FPoolingObjectRequest()
+	{
+		
+	}
+
+	FPoolingObjectRequest(TSubclassOf<UObject> RequestClass, int32 InPriority)
+		:RequestObjectClass(RequestClass)
+		,Priority(InPriority)
+	{
+		
+	}
+};
+
 
