@@ -47,7 +47,7 @@ void UPoolingObjectSubsystem::InitObjectRequestQueue(TSubclassOf<UObject> Class)
 	PendingQueueMap.Emplace(Class,-1);
 }
 
-UObject* UPoolingObjectSubsystem::TryGetObjectOfClass(TSubclassOf<UObject> Class)
+UObject* UPoolingObjectSubsystem::TryGetObjectOfClass(TSubclassOf<UObject> Class, bool bDelayActive)
 {
 	if(!::IsValid(Class))
 	{
@@ -68,10 +68,10 @@ UObject* UPoolingObjectSubsystem::TryGetObjectOfClass(TSubclassOf<UObject> Class
 	{
 		InitObjectDetail(Class);
 	}
-	return Internal_GetObjectOfClass(Class);
+	return Internal_GetObjectOfClass(Class,bDelayActive);
 }
 
-AActor* UPoolingObjectSubsystem::TryGetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform)
+AActor* UPoolingObjectSubsystem::TryGetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform, bool bDelayActive)
 {
 	if(!::IsValid(Class))
 	{
@@ -93,7 +93,7 @@ AActor* UPoolingObjectSubsystem::TryGetActorOfClass(TSubclassOf<AActor> Class, F
 	{
 		InitObjectDetail(Class);
 	}
-	return Internal_GetActorOfClass(Class,Transform);
+	return Internal_GetActorOfClass(Class,Transform,bDelayActive);
 }
 
 void UPoolingObjectSubsystem::ReleaseObjectToPool(UObject* Object)
@@ -107,14 +107,17 @@ void UPoolingObjectSubsystem::ReleaseObjectToPool(UObject* Object)
 	if(Detail == nullptr || !Detail->TotalPooingObject.Contains(Object))
 	{
 		UE_LOG(LogEasyPoolingObject,Warning,TEXT("Attemp To Release An UnPoolingable Object"));
+		return;
+	}
+	if(Detail->PooingObjectsCanUse.Contains(Object))
+	{
+		UE_LOG(LogEasyPoolingObject,Warning,TEXT("Attemp To Release An Object Which Have been Released"));
+		return;
 	}
 	const bool bIsPoolableObject = Object->Implements<UEasyPoolingInterface>();
 	if(bIsPoolableObject)
 	{
-		IEasyPoolingInterface* EasyPoolingInterface = Cast<IEasyPoolingInterface>(Object);
-		EasyPoolingInterface->PrepareForPooling();
-		EasyPoolingInterface->BP_PrepareForPooling();
-
+		IEasyPoolingInterface::Execute_PrepareForPooling(Object);
 		if(AActor* Actor = Cast<AActor>(Object))
 		{
 			Actor->SetActorHiddenInGame(true);
@@ -122,20 +125,51 @@ void UPoolingObjectSubsystem::ReleaseObjectToPool(UObject* Object)
 			Actor->SetActorTickEnabled(false);
 		}
 		Detail->PooingObjectsCanUse.Add(Object);
-		
-		EasyPoolingInterface->OnPoolingObjectDeactivate();
-		EasyPoolingInterface->BP_OnPoolingObjectDeactivate();
+		IEasyPoolingInterface::Execute_OnObjectPooled(Object);
 
 		TryProcessRequest(Class);
 	}
 }
 
-UObject* UPoolingObjectSubsystem::Internal_GetObjectOfClass(TSubclassOf<UObject> Class)
+void UPoolingObjectSubsystem::ActiveObject(UObject* Object)
+{
+	if(!IsValid(Object))
+	{
+		return;
+	}
+	bool bObjectPoolable = Object->Implements<UEasyPoolingInterface>();
+	if(bObjectPoolable)
+	{
+		IEasyPoolingInterface::Execute_OnObjectActivate(Object);
+	}
+}
+
+void UPoolingObjectSubsystem::ActiveActor(AActor* Actor, FTransform Transform)
+{
+	if(!IsValid(Actor))
+	{
+		return;
+	}
+	bool bObjectPoolable = Actor->Implements<UEasyPoolingInterface>();
+	if(bObjectPoolable)
+	{
+		Actor->SetActorEnableCollision(true);
+		Actor->SetActorHiddenInGame(false);
+		const bool bIsDefaultTickEnable = Actor->GetClass()->GetDefaultObject<AActor>()->IsActorTickEnabled();
+		Actor->SetActorTickEnabled(bIsDefaultTickEnable);
+		Actor->SetActorTransform(Transform);
+		
+		IEasyPoolingInterface::Execute_OnObjectActivate(Actor);
+	}
+}
+
+UObject* UPoolingObjectSubsystem::Internal_GetObjectOfClass(TSubclassOf<UObject> Class, bool bDelayActive)
 {
 	if(!IsValid(Class))
 	{
 		return nullptr;
 	}
+	bool bObjectPoolable = Class->ImplementsInterface(UEasyPoolingInterface::StaticClass());
 	FPooingObjectDetail* Detail = PooingObjectDetailMap.Find(Class);
 	if(Detail == nullptr)
 	{
@@ -154,29 +188,29 @@ UObject* UPoolingObjectSubsystem::Internal_GetObjectOfClass(TSubclassOf<UObject>
 	{
 		Object = NewObject<UObject>(this,Class);
 		Detail->TotalPooingObject.Add(Object);
-		IEasyPoolingInterface* EasyPoolingInterface = Cast<IEasyPoolingInterface>(Object);
-		if(EasyPoolingInterface)
+		if(bObjectPoolable)
 		{
-			EasyPoolingInterface->PostObjectConstruct();
+			IEasyPoolingInterface::Execute_PostObjectConstruct(Object);
 		}
 	}
-	IEasyPoolingInterface* EasyPoolingInterface = Cast<IEasyPoolingInterface>(Object);
-	if(EasyPoolingInterface)
+	if(bObjectPoolable)
 	{
-		EasyPoolingInterface->PrepareForActive();
-		EasyPoolingInterface->BP_PrepareForActive();
-		EasyPoolingInterface->OnPoolingObjectActivate();
-		EasyPoolingInterface->BP_OnPoolingObjectActivate();
+		IEasyPoolingInterface::Execute_PrepareForActive(Object);
+	}
+	if(!bDelayActive)
+	{
+		ActiveObject(Object);
 	}
 	return Object;
 }
 
-AActor* UPoolingObjectSubsystem::Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform)
+AActor* UPoolingObjectSubsystem::Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform, bool bDelayActive)
 {
 	if(!IsValid(Class))
 	{
 		return nullptr;
 	}
+	bool bObjectPoolable = Class->ImplementsInterface(UEasyPoolingInterface::StaticClass());
 	FPooingObjectDetail* Detail = PooingObjectDetailMap.Find(Class);
 	if(Detail == nullptr)
 	{
@@ -193,28 +227,23 @@ AActor* UPoolingObjectSubsystem::Internal_GetActorOfClass(TSubclassOf<AActor> Cl
 	}
 	else
 	{
-		Actor = NewObject<AActor>(this,Class);
+		UWorld* World = GetWorld();
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Actor = World->SpawnActor<AActor>(Class, Transform, SpawnParameters);
 		Detail->TotalPooingObject.Add(Actor);
-		IEasyPoolingInterface* EasyPoolingInterface = Cast<IEasyPoolingInterface>(Actor);
-		if(EasyPoolingInterface)
+		if(bObjectPoolable)
 		{
-			EasyPoolingInterface->PostObjectConstruct();
+			IEasyPoolingInterface::Execute_PostObjectConstruct(Actor);
 		}
 	}
-	IEasyPoolingInterface* EasyPoolingInterface = Cast<IEasyPoolingInterface>(Actor);
-	if(EasyPoolingInterface)
+	if(bObjectPoolable)
 	{
-		EasyPoolingInterface->PrepareForActive();
-		EasyPoolingInterface->BP_PrepareForActive();
-
-		Actor->SetActorEnableCollision(true);
-		Actor->SetActorHiddenInGame(false);
-		const bool bIsDefaultTickEnable = Class->GetDefaultObject<AActor>()->IsActorTickEnabled();
-		Actor->SetActorTickEnabled(bIsDefaultTickEnable);
-		Actor->SetActorTransform(Transform);
-		
-		EasyPoolingInterface->OnPoolingObjectActivate();
-		EasyPoolingInterface->BP_OnPoolingObjectActivate();
+		IEasyPoolingInterface::Execute_PrepareForActive(Actor);
+	}
+	if(!bDelayActive)
+	{
+		ActiveActor(Actor, Transform);
 	}
 	return Actor;
 }

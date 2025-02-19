@@ -8,9 +8,9 @@
 
 // This class does not need to be modified.
 UINTERFACE()
-class UEasyPoolingInterface : public UInterface
+class EASYPOOLINGOBJECT_API UEasyPoolingInterface : public UInterface
 {
-	GENERATED_BODY()
+	GENERATED_UINTERFACE_BODY()
 };
 
 /**
@@ -18,25 +18,22 @@ class UEasyPoolingInterface : public UInterface
  */
 class EASYPOOLINGOBJECT_API IEasyPoolingInterface : public IInterface
 {
-	GENERATED_BODY()
+	GENERATED_IINTERFACE_BODY()
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void PostObjectConstruct(){};
-	virtual void PrepareForActive(){};
-	virtual void PrepareForPooling(){};
-	virtual void OnPoolingObjectActivate(){};
-	virtual void OnPoolingObjectDeactivate(){};
+	UFUNCTION(BlueprintNativeEvent)
+	void PostObjectConstruct();
 
-	UFUNCTION(BlueprintImplementableEvent)
-	void BP_PrepareForActive();
+	UFUNCTION(BlueprintNativeEvent)
+	void PrepareForActive();
 	
-	UFUNCTION(BlueprintImplementableEvent)
-	void BP_PrepareForPooling();
+	UFUNCTION(BlueprintNativeEvent)
+	void PrepareForPooling();
 	
-	UFUNCTION(BlueprintImplementableEvent)
-	void BP_OnPoolingObjectActivate();
+	UFUNCTION(BlueprintNativeEvent)
+	void OnObjectActivate();
 	
-	UFUNCTION(BlueprintImplementableEvent)
-	void BP_OnPoolingObjectDeactivate();
+	UFUNCTION(BlueprintNativeEvent)
+	void OnObjectPooled();
 };

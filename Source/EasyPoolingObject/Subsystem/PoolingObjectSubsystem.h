@@ -71,18 +71,24 @@ protected:
 	void InitObjectRequestQueue(TSubclassOf<UObject> Class);
 
 public:
-	UFUNCTION(BlueprintCallable)
-	UObject* TryGetObjectOfClass(TSubclassOf<UObject> Class);
+	UFUNCTION(BlueprintCallable,meta=(DeterminesOutputType = "Class"))
+	UObject* TryGetObjectOfClass( UPARAM(meta = (MustImplement = "/Script/EasyPoolingObject.EasyPoolingInterface")) TSubclassOf<UObject> Class, bool bDelayActive = false);
 
-	UFUNCTION(BlueprintCallable)
-	AActor* TryGetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
+	UFUNCTION(BlueprintCallable,meta=(DeterminesOutputType = "Class"))
+	AActor* TryGetActorOfClass( UPARAM(meta = (MustImplement = "/Script/EasyPoolingObject.EasyPoolingInterface")) TSubclassOf<AActor> Class, FTransform Transform, bool bDelayActive = false);
 
 	UFUNCTION(BlueprintCallable)
 	void ReleaseObjectToPool(UObject* Object);
 
+	UFUNCTION(BlueprintCallable)
+	void ActiveObject(UObject* Object);
+
+	UFUNCTION(BlueprintCallable)
+	void ActiveActor(AActor* Actor, FTransform Transform);
+
 protected:
-	UObject* Internal_GetObjectOfClass(TSubclassOf<UObject> Class);
-	AActor* Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
+	UObject* Internal_GetObjectOfClass(TSubclassOf<UObject> Class, bool bDelayActive = false);
+	AActor* Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform, bool bDelayActive = false);
 
 	void TryProcessRequest(TSubclassOf<UObject> Class);
 

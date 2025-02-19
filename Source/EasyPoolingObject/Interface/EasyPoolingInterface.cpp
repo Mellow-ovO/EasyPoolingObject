@@ -5,3 +5,7 @@
 
 
 // Add default functionality here for any IEasyPoolingInterface functions that are not pure virtual.
+UEasyPoolingInterface::UEasyPoolingInterface(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
+{
+}

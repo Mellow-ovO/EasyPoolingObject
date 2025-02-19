@@ -10,6 +10,11 @@ public class EasyPoolingObjectDev : ModuleRules
             new string[]
             {
                 "Core",
+                "EasyPoolingObject",
+                "Kismet",
+                "KismetCompiler",
+                "UnrealEd",
+                "BlueprintGraph"
             }
         );
 
