@@ -79,7 +79,7 @@ protected:
 	UObject* Internal_GetObjectOfClass(TSubclassOf<UObject> Class);
 	AActor* Internal_GetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
 
-	void TryProcessRequest(TSubclassOf<AActor> Class);
+	void TryProcessRequest(TSubclassOf<UObject> Class);
 
 public:
 	FPoolingObjectRequestHandle RequestPoolingObject(FPoolingObjectRequest& Request);

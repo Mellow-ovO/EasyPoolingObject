@@ -22,6 +22,7 @@ class EASYPOOLINGOBJECT_API IEasyPoolingInterface : public IInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
+	virtual void PostObjectConstruct(){};
 	virtual void PrepareForActive(){};
 	virtual void PrepareForPooling(){};
 	virtual void OnPoolingObjectActivate(){};
