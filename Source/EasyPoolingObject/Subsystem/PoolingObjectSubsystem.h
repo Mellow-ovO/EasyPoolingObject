@@ -71,8 +71,13 @@ protected:
 	void InitObjectRequestQueue(TSubclassOf<UObject> Class);
 
 public:
+	UFUNCTION(BlueprintCallable)
 	UObject* TryGetObjectOfClass(TSubclassOf<UObject> Class);
+
+	UFUNCTION(BlueprintCallable)
 	AActor* TryGetActorOfClass(TSubclassOf<AActor> Class, FTransform Transform);
+
+	UFUNCTION(BlueprintCallable)
 	void ReleaseObjectToPool(UObject* Object);
 
 protected:

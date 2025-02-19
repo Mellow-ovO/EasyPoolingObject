@@ -274,11 +274,32 @@ FPoolingObjectRequestHandle UPoolingObjectSubsystem::RequestPoolingObject(FPooli
 		ensureAlwaysMsgf(false,TEXT("Try Request Unpoolable Object, Class: %s"),*(Request.RequestObjectClass->GetName()));
 		return FPoolingObjectRequestHandle();
 	}
+
+	FPooingObjectDetail* Detail = PooingObjectDetailMap.Find(Request.RequestObjectClass);
+	if(Detail->Limit <= 0 || Detail->TotalPooingObject.Num() < Detail->Limit || Detail->PooingObjectsCanUse.Num() > 0)
+	{
+		UObject* Object = nullptr;
+		if(Request.RequestObjectClass->IsChildOf(AActor::StaticClass()))
+		{
+			Object = TryGetActorOfClass(Request.RequestObjectClass.Get(),Request.ActorTransform);
+		}
+		else
+		{
+			Object = TryGetObjectOfClass(Request.RequestObjectClass);
+		}
+		if(Object != nullptr)
+		{
+			Request.RequestSuccessDelegate.ExecuteIfBound(Object);
+			return FPoolingObjectRequestHandle();
+		}
+	}
+
 	FPooingObjectRequestQueue* Queue = PendingQueueMap.Find(Request.RequestObjectClass);
 	if(Queue == nullptr)
 	{
 		InitObjectRequestQueue(Request.RequestObjectClass);
 	}
+	
 	Queue = PendingQueueMap.Find(Request.RequestObjectClass);
 	if(Queue->Limit > 0 && Queue->PendingQueue.Num() >= Queue->Limit)
 	{
