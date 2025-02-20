@@ -10,7 +10,7 @@
  * 
  */
 UCLASS()
-class EASYPOOLINGOBJECTDEV_API UK2Node_RequestPoolableActor : public UK2Node_BaseAsyncTask
+class EASYPOOLINGOBJECTDEV_API UK2Node_RequestPoolableActor : public /* UK2Node_BaseAsyncTask */ UObject
 {
 	GENERATED_BODY()
 };

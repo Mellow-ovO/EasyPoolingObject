@@ -63,23 +63,28 @@ public:
 	UPROPERTY()
 	FPoolingObjectRequestHandle Handle;
 
+	UPROPERTY()
+	bool bDelayActive = false;
+
 public:
 	FPoolingObjectRequest()
 	{
 		
 	}
 
-	FPoolingObjectRequest(TSubclassOf<UObject> RequestClass, int32 InPriority)
+	FPoolingObjectRequest(TSubclassOf<UObject> RequestClass, int32 InPriority, bool InbDelayActive = false)
 		:RequestObjectClass(RequestClass)
 		,Priority(InPriority)
+		,bDelayActive(InbDelayActive)
 	{
 		
 	}
 
-	FPoolingObjectRequest(TSubclassOf<AActor> RequestClass, int32 InPriority, FTransform InTransform)
+	FPoolingObjectRequest(TSubclassOf<AActor> RequestClass, int32 InPriority, FTransform InTransform, bool InbDelayActive = false)
 		:RequestObjectClass(RequestClass)
 		,Priority(InPriority)
 		,ActorTransform(InTransform)
+		,bDelayActive(InbDelayActive)
 	{
 		
 	}

@@ -7,72 +7,11 @@
 #include "K2Node_CallFunction.h"
 #include "K2Node_Self.h"
 #include "KismetCompiler.h"
-#include "EasyPoolingObject/Interface/EasyPoolingInterface.h"
 #include "EasyPoolingObject/Lib/EasyPoolingObjectFuncLib.h"
+#include "EasyPoolingObjectDev/K2Node/EasyPoolingNodeDefine.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_GetPoolableObjectFromClass"
-
-struct FK2Node_GetPoolableObjectFromClass_Utils
-{
-	static bool CanSpawnObjectOfClass(TSubclassOf<UObject> ObjectClass, bool bAllowAbstract)
-	{
-		// Initially include types that meet the basic requirements.
-		// Note: CLASS_Deprecated is an inherited class flag, so any subclass of an explicitly-deprecated class also cannot be spawned.
-		bool bCanSpawnObject = (nullptr != *ObjectClass)
-			&& (bAllowAbstract || !ObjectClass->HasAnyClassFlags(CLASS_Abstract))
-			&& !ObjectClass->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists);
-
-		// UObject is a special case where if we are allowing abstract we are going to allow it through even though it doesn't have BlueprintType on it
-		if (bCanSpawnObject && (!bAllowAbstract || (*ObjectClass != UObject::StaticClass())))
-		{
-			static const FName BlueprintTypeName(TEXT("BlueprintType"));
-			static const FName NotBlueprintTypeName(TEXT("NotBlueprintType"));
-			static const FName DontUseGenericSpawnObjectName(TEXT("DontUseGenericSpawnObject"));
-
-			auto IsClassAllowedLambda = [](const UClass* InClass)
-			{
-				return InClass != AActor::StaticClass()
-					&& InClass != UActorComponent::StaticClass();
-			};
-
-			// Exclude all types in the initial set by default.
-			bCanSpawnObject = false;
-			const UClass* CurrentClass = ObjectClass;
-
-			// Climb up the class hierarchy and look for "BlueprintType." If "NotBlueprintType" is seen first, or if the class is not allowed, then stop searching.
-			while (!bCanSpawnObject && CurrentClass != nullptr && !CurrentClass->GetBoolMetaData(NotBlueprintTypeName) && IsClassAllowedLambda(CurrentClass))
-			{
-				// Include any type that either includes or inherits 'BlueprintType'
-				bCanSpawnObject = CurrentClass->GetBoolMetaData(BlueprintTypeName);
-
-				// Stop searching if we encounter 'BlueprintType' with 'DontUseGenericSpawnObject'
-				if (bCanSpawnObject && CurrentClass->GetBoolMetaData(DontUseGenericSpawnObjectName))
-				{
-					bCanSpawnObject = false;
-					break;
-				}
-
-				CurrentClass = CurrentClass->GetSuperClass();
-			}
-
-			// If we validated the given class, continue walking up the hierarchy to make sure we exclude it if it's an Actor or ActorComponent derivative.
-			while (bCanSpawnObject && CurrentClass != nullptr)
-			{
-				bCanSpawnObject &= IsClassAllowedLambda(CurrentClass);
-
-				CurrentClass = CurrentClass->GetSuperClass();
-			}
-		}
-
-		if(!ObjectClass->ImplementsInterface(UEasyPoolingInterface::StaticClass()))
-		{
-			return false;
-		}
-
-		return bCanSpawnObject;
-	}
-};
 
 bool UK2Node_GetPoolableObjectFromClass::UseOuter() const
 {
@@ -108,7 +47,7 @@ void UK2Node_GetPoolableObjectFromClass::ExpandNode(FKismetCompilerContext& Comp
 
 	//set delay active
 	{
-		UEdGraphPin* DelayActivePin = CallCreateNode->FindPin(TEXT("bDelayActive"));
+		UEdGraphPin* DelayActivePin = CallCreateNode->FindPin(FEasyPooingNodeHelper::DelayActivePinName);
 		DelayActivePin->DefaultValue = "true";
 	}
 
@@ -122,7 +61,7 @@ void UK2Node_GetPoolableObjectFromClass::ExpandNode(FKismetCompilerContext& Comp
 	//connect class
 	{
 		UEdGraphPin* SpawnClassPin = GetClassPin();
-		UEdGraphPin* CallClassPin = CallCreateNode->FindPin(TEXT("Class"));
+		UEdGraphPin* CallClassPin = CallCreateNode->FindPin(FEasyPooingNodeHelper::ConstructClassPinName);
 		bSucceeded &= SpawnClassPin && CallClassPin && CompilerContext.MovePinLinksToIntermediate(*SpawnClassPin, *CallClassPin).CanSafeConnect();
 	}
 		
@@ -131,8 +70,8 @@ void UK2Node_GetPoolableObjectFromClass::ExpandNode(FKismetCompilerContext& Comp
 		UEdGraphPin* SpawnWorldContextPin = GetWorldContextPin();
 		if(SpawnWorldContextPin)
 		{
-			UEdGraphPin* CallWorldContextPin = CallCreateNode->FindPin(TEXT("WorldContext"));
-			UEdGraphPin* ActiveWorldContextPin = CallActiveNode->FindPin(TEXT("WorldContext"));
+			UEdGraphPin* CallWorldContextPin = CallCreateNode->FindPin(FEasyPooingNodeHelper::WorldContextPinName);
+			UEdGraphPin* ActiveWorldContextPin = CallActiveNode->FindPin(FEasyPooingNodeHelper::WorldContextPinName);
 			bSucceeded &= SpawnWorldContextPin && CallWorldContextPin && CompilerContext.CopyPinLinksToIntermediate(*SpawnWorldContextPin, *CallWorldContextPin).CanSafeConnect();
 			bSucceeded &= CompilerContext.CopyPinLinksToIntermediate(*SpawnWorldContextPin, *ActiveWorldContextPin).CanSafeConnect();
 		}
@@ -143,7 +82,7 @@ void UK2Node_GetPoolableObjectFromClass::ExpandNode(FKismetCompilerContext& Comp
 	{
 		UEdGraphPin* SpawnResultPin = GetResultPin();
 		CallResultPin = CallCreateNode->GetReturnValuePin();
-		UEdGraphPin* ActiveObjectPin = CallActiveNode->FindPin(TEXT("Object"));
+		UEdGraphPin* ActiveObjectPin = CallActiveNode->FindPin(FEasyPooingNodeHelper::ObjectPinName);
 		// cast HACK. It should be safe. The only problem is native code generation.
 		if (SpawnResultPin && CallResultPin)
 		{
@@ -180,7 +119,7 @@ void UK2Node_GetPoolableObjectFromClass::EarlyValidation(FCompilerResultsLog& Me
 	UEdGraphPin* ClassPin = GetClassPin(&Pins);
 	const bool bAllowAbstract = ClassPin && ClassPin->LinkedTo.Num();
 	UClass* ClassToSpawn = GetClassToSpawn();
-	if (!FK2Node_GetPoolableObjectFromClass_Utils::CanSpawnObjectOfClass(ClassToSpawn, bAllowAbstract))
+	if (!FEasyPooingNodeHelper::CanSpawnObjectOfClass(ClassToSpawn, bAllowAbstract))
 	{
 		MessageLog.Error(*FText::Format(LOCTEXT("GenericCreateObject_WrongClassFmt", "Cannot construct objects of type '{0}' in @@"), FText::FromString(GetPathNameSafe(ClassToSpawn))).ToString(), this);
 	}
@@ -196,7 +135,7 @@ FString UK2Node_GetPoolableObjectFromClass::GetPinMetaData(FName InPinName, FNam
 {
 	if (InPinName == FName("Class") && InKey == FName("MustImplement"))
 	{
-		return "/Script/EasyPoolingObject.EasyPoolingInterface";
+		return FEasyPooingNodeHelper::PoolingInterfaceRef;
 	}
 	return Super::GetPinMetaData(InPinName, InKey);
 }

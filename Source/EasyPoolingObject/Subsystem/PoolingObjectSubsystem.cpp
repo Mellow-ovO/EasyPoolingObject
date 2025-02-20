@@ -275,11 +275,11 @@ void UPoolingObjectSubsystem::TryProcessRequest(TSubclassOf<UObject> Class)
 	UObject* Object = nullptr;
 	if(Request.RequestObjectClass->IsChildOf(AActor::StaticClass()))
 	{
-		Object = TryGetActorOfClass(Class.Get(),Request.ActorTransform);
+		Object = TryGetActorOfClass(Class.Get(),Request.ActorTransform,Request.bDelayActive);
 	}
 	else
 	{
-		Object = TryGetObjectOfClass(Class);
+		Object = TryGetObjectOfClass(Class,Request.bDelayActive);
 	}
 	if(Object != nullptr)
 	{
@@ -305,16 +305,21 @@ FPoolingObjectRequestHandle UPoolingObjectSubsystem::RequestPoolingObject(FPooli
 	}
 
 	FPooingObjectDetail* Detail = PooingObjectDetailMap.Find(Request.RequestObjectClass);
+	if(Detail == nullptr)
+	{
+		InitObjectDetail(Request.RequestObjectClass);
+	}
+	Detail = PooingObjectDetailMap.Find(Request.RequestObjectClass);
 	if(Detail->Limit <= 0 || Detail->TotalPooingObject.Num() < Detail->Limit || Detail->PooingObjectsCanUse.Num() > 0)
 	{
 		UObject* Object = nullptr;
 		if(Request.RequestObjectClass->IsChildOf(AActor::StaticClass()))
 		{
-			Object = TryGetActorOfClass(Request.RequestObjectClass.Get(),Request.ActorTransform);
+			Object = TryGetActorOfClass(Request.RequestObjectClass.Get(),Request.ActorTransform,Request.bDelayActive);
 		}
 		else
 		{
-			Object = TryGetObjectOfClass(Request.RequestObjectClass);
+			Object = TryGetObjectOfClass(Request.RequestObjectClass,Request.bDelayActive);
 		}
 		if(Object != nullptr)
 		{

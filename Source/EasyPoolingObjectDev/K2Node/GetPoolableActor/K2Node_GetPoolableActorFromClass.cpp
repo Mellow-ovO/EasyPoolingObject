@@ -6,74 +6,17 @@
 #include "K2Node_CallFunction.h"
 #include "KismetCompiler.h"
 #include "KismetCompilerMisc.h"
-#include "EasyPoolingObject/Interface/EasyPoolingInterface.h"
 #include "EasyPoolingObject/Lib/EasyPoolingObjectFuncLib.h"
+#include "EasyPoolingObjectDev/K2Node/EasyPoolingNodeDefine.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_GetPoolableActorFromClass"
 
-namespace GetPoolableActorFromClassHelper
-{
-	static FName TransformPinName = FName("Transform");
-}
-
-struct FK2Node_GetPoolableActorFromClass_Utils
-{
-	static bool CanSpawnObjectOfClass(TSubclassOf<UObject> ObjectClass, bool bAllowAbstract)
-	{
-		// Initially include types that meet the basic requirements.
-		// Note: CLASS_Deprecated is an inherited class flag, so any subclass of an explicitly-deprecated class also cannot be spawned.
-		bool bCanSpawnObject = (nullptr != *ObjectClass)
-			&& (bAllowAbstract || !ObjectClass->HasAnyClassFlags(CLASS_Abstract))
-			&& !ObjectClass->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists);
-
-		// UObject is a special case where if we are allowing abstract we are going to allow it through even though it doesn't have BlueprintType on it
-		if (bCanSpawnObject && (!bAllowAbstract || (*ObjectClass != UObject::StaticClass())))
-		{
-			static const FName BlueprintTypeName(TEXT("BlueprintType"));
-			static const FName NotBlueprintTypeName(TEXT("NotBlueprintType"));
-			static const FName DontUseGenericSpawnObjectName(TEXT("DontUseGenericSpawnObject"));
-
-			// Exclude all types in the initial set by default.
-			bCanSpawnObject = false;
-			const UClass* CurrentClass = ObjectClass;
-
-			// Climb up the class hierarchy and look for "BlueprintType." If "NotBlueprintType" is seen first, or if the class is not allowed, then stop searching.
-			while (!bCanSpawnObject && CurrentClass != nullptr && !CurrentClass->GetBoolMetaData(NotBlueprintTypeName))
-			{
-				// Include any type that either includes or inherits 'BlueprintType'
-				bCanSpawnObject = CurrentClass->GetBoolMetaData(BlueprintTypeName);
-
-				// Stop searching if we encounter 'BlueprintType' with 'DontUseGenericSpawnObject'
-				if (bCanSpawnObject && CurrentClass->GetBoolMetaData(DontUseGenericSpawnObjectName))
-				{
-					bCanSpawnObject = false;
-					break;
-				}
-
-				CurrentClass = CurrentClass->GetSuperClass();
-			}
-
-			// If we validated the given class, continue walking up the hierarchy to make sure we exclude it if it's an Actor or ActorComponent derivative.
-			while (bCanSpawnObject && CurrentClass != nullptr)
-			{
-				CurrentClass = CurrentClass->GetSuperClass();
-			}
-		}
-
-		if(!ObjectClass->ImplementsInterface(UEasyPoolingInterface::StaticClass()))
-		{
-			return false;
-		}
-
-		return bCanSpawnObject;
-	}
-};
 
 void UK2Node_GetPoolableActorFromClass::AllocateDefaultPins()
 {
 	Super::AllocateDefaultPins();
 	UScriptStruct* TransformStruct = TBaseStructure<FTransform>::Get();
-	CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, TransformStruct, GetPoolableActorFromClassHelper::TransformPinName);
+	CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, TransformStruct, FEasyPooingNodeHelper::TransformPinName);
 }
 
 void UK2Node_GetPoolableActorFromClass::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
@@ -98,7 +41,7 @@ void UK2Node_GetPoolableActorFromClass::ExpandNode(FKismetCompilerContext& Compi
 
 	//set delay active
 	{
-		UEdGraphPin* DelayActivePin = CallCreateNode->FindPin(TEXT("bDelayActive"));
+		UEdGraphPin* DelayActivePin = CallCreateNode->FindPin(FEasyPooingNodeHelper::DelayActivePinName);
 		DelayActivePin->DefaultValue = "true";
 	}
 
@@ -111,9 +54,9 @@ void UK2Node_GetPoolableActorFromClass::ExpandNode(FKismetCompilerContext& Compi
 
 	//connect transform
 	{
-		UEdGraphPin* SpawnTransformPin = FindPin(GetPoolableActorFromClassHelper::TransformPinName);
-		UEdGraphPin* CreateTransformPin = CallCreateNode->FindPin(GetPoolableActorFromClassHelper::TransformPinName);
-		UEdGraphPin* ActiveTransformPin = CallActiveNode->FindPin(GetPoolableActorFromClassHelper::TransformPinName);
+		UEdGraphPin* SpawnTransformPin = FindPin(FEasyPooingNodeHelper::TransformPinName);
+		UEdGraphPin* CreateTransformPin = CallCreateNode->FindPin(FEasyPooingNodeHelper::TransformPinName);
+		UEdGraphPin* ActiveTransformPin = CallActiveNode->FindPin(FEasyPooingNodeHelper::TransformPinName);
 		bSucceeded &= SpawnTransformPin && CreateTransformPin && CompilerContext.CopyPinLinksToIntermediate(*SpawnTransformPin, *CreateTransformPin).CanSafeConnect();
 		bSucceeded &= SpawnTransformPin && ActiveTransformPin && CompilerContext.CopyPinLinksToIntermediate(*SpawnTransformPin, *ActiveTransformPin).CanSafeConnect();
 	}
@@ -178,7 +121,7 @@ void UK2Node_GetPoolableActorFromClass::EarlyValidation(FCompilerResultsLog& Mes
 	UEdGraphPin* ClassPin = GetClassPin(&Pins);
 	const bool bAllowAbstract = ClassPin && ClassPin->LinkedTo.Num();
 	UClass* ClassToSpawn = GetClassToSpawn();
-	if (!FK2Node_GetPoolableActorFromClass_Utils::CanSpawnObjectOfClass(ClassToSpawn, bAllowAbstract))
+	if (!FEasyPooingNodeHelper::CanSpawnActorOfClass(ClassToSpawn, bAllowAbstract))
 	{
 		MessageLog.Error(*FText::Format(LOCTEXT("GenericCreateObject_WrongClassFmt", "Cannot construct objects of type '{0}' in @@"), FText::FromString(GetPathNameSafe(ClassToSpawn))).ToString(), this);
 	}
@@ -189,7 +132,7 @@ bool UK2Node_GetPoolableActorFromClass::IsSpawnVarPin(UEdGraphPin* Pin) const
 	UEdGraphPin* ParentPin = Pin->ParentPin;
 	while (ParentPin)
 	{
-		if (ParentPin->PinName == GetPoolableActorFromClassHelper::TransformPinName)
+		if (ParentPin->PinName == FEasyPooingNodeHelper::TransformPinName)
 		{
 			return false;
 		}
@@ -197,7 +140,7 @@ bool UK2Node_GetPoolableActorFromClass::IsSpawnVarPin(UEdGraphPin* Pin) const
 	}
 
 	return(	Super::IsSpawnVarPin(Pin) &&
-			Pin->PinName != GetPoolableActorFromClassHelper::TransformPinName );
+			Pin->PinName != FEasyPooingNodeHelper::TransformPinName );
 }
 
 UClass* UK2Node_GetPoolableActorFromClass::GetClassPinBaseClass() const
