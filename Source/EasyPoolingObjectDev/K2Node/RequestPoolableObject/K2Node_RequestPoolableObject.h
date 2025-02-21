@@ -21,7 +21,7 @@ public:
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual FText GetKeywords() const override;
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
-	virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
+	// virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void PostPlacedNewNode() override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
@@ -56,6 +56,7 @@ protected:
 
 	UEdGraphPin* GetRequestResultPin() const;
 	UEdGraphPin* GetRequestSuccessPin() const;
+	void SetPinToolTip(UEdGraphPin& MutatablePin) const;
 
 	UClass* GetClassToSpawn(const TArray<UEdGraphPin*>* InPinsToSearch=NULL) const;
 

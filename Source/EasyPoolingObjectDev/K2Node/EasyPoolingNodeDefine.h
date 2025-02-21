@@ -8,6 +8,7 @@ struct FEasyPooingNodeHelper
 	static inline FName WorldContextPinName = "WorldContext";
 	static inline FName TransformPinName = "Transform";
 	static inline FName ObjectPinName = "Object";
+	static inline FName ActorPinName = "Actor";
 	static inline FName PriorityPinName = "InPriority";
 	static inline FName DelayActivePinName = "bDelayActive";
 	static inline FName RequestResultPinName = "RequestedResult";

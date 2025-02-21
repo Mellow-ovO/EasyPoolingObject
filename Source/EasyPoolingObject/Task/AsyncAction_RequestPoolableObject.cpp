@@ -60,18 +60,53 @@ void UAsyncAction_RequestPoolableObject::HandleRequestSuccess(UObject* ResultObj
 void UAsyncAction_RequestPoolableActor::Activate()
 {
 	Super::Activate();
+	UWorld* World = WeakWorld.Get();
+	if(!IsValid(World))
+	{
+		OnRequestFailed.Broadcast();
+		SetReadyToDestroy();
+		return;
+	}
+	UPoolingObjectSubsystem* PoolingObjectSubsystem = World->GetSubsystem<UPoolingObjectSubsystem>();
+	FPoolingObjectRequest Request = FPoolingObjectRequest(RequestClass,Priority,true);
+	Request.RequestSuccessDelegate = FPostPoolingActorRequestSuccess::CreateUObject(this,&UAsyncAction_RequestPoolableActor::HandleRequestSuccess);
+	RequestHandle = PoolingObjectSubsystem->RequestPoolingObject(Request);
+	if(!RequestHandle.IsValid() && !bHasTrigger)
+	{
+		OnRequestFailed.Broadcast();
+		SetReadyToDestroy();
+	}
 }
 
 void UAsyncAction_RequestPoolableActor::Cancel()
 {
+	UWorld* World = WeakWorld.Get();
+	if(IsValid(World))
+	{
+		UPoolingObjectSubsystem* PoolingObjectSubsystem = World->GetSubsystem<UPoolingObjectSubsystem>();
+		PoolingObjectSubsystem->CancelRequestAndInvalidateHandle(RequestClass,RequestHandle);
+	}
 	Super::Cancel();
 }
 
 UAsyncAction_RequestPoolableActor* UAsyncAction_RequestPoolableActor::RequestPoolableActor(UObject* WorldContext, TSubclassOf<AActor> Class,
-                                                                                           FTransform Transform)
+                                                                                           FTransform Transform, int32 InPriority)
 {
 	UAsyncAction_RequestPoolableActor* Obj = NewObject<UAsyncAction_RequestPoolableActor>();
 	Obj->RequestClass = Class;
+	Obj->WeakWorld = WorldContext->GetWorld();
+	Obj->Priority = InPriority;
 	Obj->RequiredTransform = Transform;
 	return Obj;
+}
+
+void UAsyncAction_RequestPoolableActor::HandleRequestSuccess(UObject* ResultObject)
+{
+	AActor* ResultActor = Cast<AActor>(ResultObject);
+	if(IsValid(ResultActor))
+	{
+		OnRequestSuccess.Broadcast(ResultActor);
+	}
+	bHasTrigger = true;
+	SetReadyToDestroy();
 }

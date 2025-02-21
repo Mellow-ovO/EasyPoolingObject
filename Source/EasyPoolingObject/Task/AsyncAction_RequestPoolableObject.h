@@ -63,8 +63,11 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "EasyPooling|Tasks", meta = (WorldContext = "WorldContext", BlueprintInternalUseOnly = "TRUE"))
-	static UAsyncAction_RequestPoolableActor* RequestPoolableActor(UObject* WorldContext, UPARAM(meta = (MustImplement = "/Script/EasyPoolingObject.EasyPoolingInterface")) TSubclassOf<AActor> Class, FTransform Transform);
+	static UAsyncAction_RequestPoolableActor* RequestPoolableActor(UObject* WorldContext, UPARAM(meta = (MustImplement = "/Script/EasyPoolingObject.EasyPoolingInterface")) TSubclassOf<AActor> Class, FTransform Transform, int32 InPriority = 1);
 
+	UFUNCTION()
+	void HandleRequestSuccess(UObject* ResultObject);
+	
 protected:
 	UPROPERTY()
 	TSubclassOf<UObject> RequestClass;
@@ -73,10 +76,20 @@ protected:
 	FPoolingObjectRequestHandle RequestHandle;
 
 	UPROPERTY()
+	TWeakObjectPtr<UWorld> WeakWorld;
+
+	UPROPERTY()
 	FTransform RequiredTransform;
+
+	int32 Priority = 1;
+
+	bool bHasTrigger = false;
 	
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnRequestActorSuccess OnRequestSuccess;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnRequestFailed OnRequestFailed;
 	
 };

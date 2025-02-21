@@ -155,7 +155,6 @@ void UK2Node_RequestPoolableObject::ExpandNode(FKismetCompilerContext& CompilerC
 
 	UEdGraphPin* ResultPin = GetRequestResultPin();
 	ResultPin->PinType.PinSubCategoryObject = ClassToSpawn;
-	ResultPin->PinFriendlyName = FText::FromString("sbbbb");
 	
 	BreakAllNodeLinks();
 
@@ -193,11 +192,11 @@ bool UK2Node_RequestPoolableObject::HasExternalDependencies(TArray<UStruct*>* Op
 	return bSuperResult || bResult;
 }
 
-bool UK2Node_RequestPoolableObject::IsCompatibleWithGraph(const UEdGraph* TargetGraph) const
-{
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(TargetGraph);
-	return Super::IsCompatibleWithGraph(TargetGraph) && (!Blueprint || (FBlueprintEditorUtils::FindUserConstructionScript(Blueprint) != TargetGraph && Blueprint->GeneratedClass->GetDefaultObject()->ImplementsGetWorld()));
-}
+// bool UK2Node_RequestPoolableObject::IsCompatibleWithGraph(const UEdGraph* TargetGraph) const
+// {
+// 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(TargetGraph);
+// 	return Super::IsCompatibleWithGraph(TargetGraph) && (!Blueprint || (FBlueprintEditorUtils::FindUserConstructionScript(Blueprint) != TargetGraph && Blueprint->GeneratedClass->GetDefaultObject()->ImplementsGetWorld()));
+// }
 
 void UK2Node_RequestPoolableObject::PinConnectionListChanged(UEdGraphPin* Pin)
 {
@@ -311,11 +310,11 @@ FText UK2Node_RequestPoolableObject::GetMenuCategory() const
 
 void UK2Node_RequestPoolableObject::RefreshOutputPinType()
 {
-	UClass* OldClass = (UClass*)(GetRequestResultPin()->PinType.PinSubCategoryObject.Get());
+	UEdGraphPin* ResultPin = GetRequestResultPin();
+	UClass* OldClass = (UClass*)(ResultPin->PinType.PinSubCategoryObject.Get());
 	UClass* NewClass = GetClassToSpawn();
 	if (OldClass != NewClass)
 	{
-		UEdGraphPin* ResultPin = GetRequestResultPin();
 
 		if (ResultPin->SubPins.Num() > 0)
 		{
@@ -326,9 +325,9 @@ void UK2Node_RequestPoolableObject::RefreshOutputPinType()
 		//       connections, and incompatible connections will produce an error (plus, some super-struct connections may still be valid)
 		ResultPin->PinType.PinCategory = UEdGraphSchema_K2::PC_Object;
 		ResultPin->PinType.PinSubCategoryObject = (NewClass == nullptr) ? UObject::StaticClass() : NewClass;
-
 		CachedNodeTitle.Clear();
 	}
+	SetPinToolTip(*ResultPin);
 }
 
 bool UK2Node_RequestPoolableObject::UseWorldContext() const
@@ -387,6 +386,7 @@ void UK2Node_RequestPoolableObject::CreatePinsForClass(UClass* InClass, TArray<U
 	// Change class of output pin
 	UEdGraphPin* ResultPin = GetRequestResultPin();
 	ResultPin->PinType.PinSubCategoryObject = InClass->GetAuthoritativeClass();
+	SetPinToolTip(*ResultPin);
 }
 
 bool UK2Node_RequestPoolableObject::IsSpawnVarPin(UEdGraphPin* Pin) const
@@ -454,6 +454,19 @@ UEdGraphPin* UK2Node_RequestPoolableObject::GetRequestSuccessPin() const
 	return Pin;
 }
 
+void UK2Node_RequestPoolableObject::SetPinToolTip(UEdGraphPin& MutatablePin) const
+{
+	MutatablePin.PinToolTip = FString();
+	UEdGraphSchema_K2 const* const K2Schema = Cast<const UEdGraphSchema_K2>(GetSchema());
+	if (K2Schema != nullptr)
+	{
+		MutatablePin.PinToolTip += K2Schema->GetPinDisplayName(&MutatablePin).ToString();
+		MutatablePin.PinToolTip += FString(TEXT("\n"));
+
+	}
+	MutatablePin.PinToolTip += UEdGraphSchema_K2::TypeToText(MutatablePin.PinType).ToString();
+}
+
 UClass* UK2Node_RequestPoolableObject::GetClassToSpawn(const TArray<UEdGraphPin*>* InPinsToSearch) const
 {
 	UClass* UseSpawnClass = nullptr;
@@ -501,6 +514,7 @@ void UK2Node_RequestPoolableObject::OnClassPinChanged()
 	UEdGraphPin* ResultPin = GetRequestResultPin();
 	// Cache all the pin connections to the ResultPin, we will attempt to recreate them
 	TArray<UEdGraphPin*> ResultPinConnectionList = ResultPin->LinkedTo;
+	SetPinToolTip(*ResultPin);
 	// Because the archetype has changed, we break the output link as the output pin type will change
 	ResultPin->BreakAllPinLinks(true);
 
