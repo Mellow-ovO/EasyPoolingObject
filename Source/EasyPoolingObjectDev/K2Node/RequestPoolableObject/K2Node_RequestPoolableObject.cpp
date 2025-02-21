@@ -192,6 +192,18 @@ bool UK2Node_RequestPoolableObject::HasExternalDependencies(TArray<UStruct*>* Op
 	return bSuperResult || bResult;
 }
 
+void UK2Node_RequestPoolableObject::EarlyValidation(FCompilerResultsLog& MessageLog) const
+{
+	Super::EarlyValidation(MessageLog);
+	UEdGraphPin* ClassPin = GetClassPin(&Pins);
+	const bool bAllowAbstract = ClassPin && ClassPin->LinkedTo.Num();
+	UClass* ClassToSpawn = GetClassToSpawn();
+	if (!FEasyPooingNodeHelper::CanSpawnObjectOfClass(ClassToSpawn, bAllowAbstract))
+	{
+		MessageLog.Error(*FText::Format(LOCTEXT("GenericCreateObject_WrongClassFmt", "Cannot construct objects of type '{0}' in @@"), FText::FromString(GetPathNameSafe(ClassToSpawn))).ToString(), this);
+	}
+}
+
 // bool UK2Node_RequestPoolableObject::IsCompatibleWithGraph(const UEdGraph* TargetGraph) const
 // {
 // 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(TargetGraph);

@@ -22,6 +22,7 @@ public:
 	virtual FText GetKeywords() const override;
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	// virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
+	virtual void EarlyValidation(class FCompilerResultsLog& MessageLog) const override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void PostPlacedNewNode() override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
